@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width,
+                   initial-scale=1.0,
+                   maximum-scale=1.0,
+                   user-scalable=no">
+
+    <title>Kiss Me CJ</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #020a05;
+            font-family: Arial, sans-serif;
+        }
+
+        /* FALLING CODE */
+        #codeCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* FLOATING PARTICLES */
+        #particlesCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* GREEN GLOW */
+        .glow {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            width: 280px;
+            height: 280px;
+            transform: translate(-50%, -50%);
+
+            background: rgba(50, 255, 100, 0.10);
+
+            border-radius: 50%;
+
+            filter: blur(55px);
+
+            z-index: 3;
+
+            pointer-events: none;
+
+            animation: pulse 2s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from {
+                opacity: 0.35;
+                transform: translate(-50%, -50%) scale(0.85);
+            }
+
+            to {
+                opacity: 0.9;
+                transform: translate(-50%, -50%) scale(1.15);
+            }
+        }
+
+        /* CENTER CONTENT */
+        #centerContent {
+            position: fixed;
+
+            left: 50%;
+            top: 50%;
+
+            transform:
+                translate(-50%, -50%)
+                scale(0.5);
+
+            width: 90vw;
+            max-width: 420px;
+
+            text-align: center;
+
+            z-index: 10;
+
+            opacity: 0;
+
+            transition:
+                opacity 1.5s ease,
+                transform 1.5s ease;
+        }
+
+        /* PHOTO */
+        #cjPhoto {
+            display: block;
+
+            width: min(72vw, 300px);
+
+            max-height: 300px;
+
+            margin: 0 auto;
+
+            object-fit: contain;
+
+            border-radius: 20px;
+
+            border: 3px solid rgba(80, 255, 130, 0.7);
+
+            box-shadow:
+                0 0 10px rgba(80, 255, 130, 0.8),
+                0 0 25px rgba(80, 255, 130, 0.6),
+                0 0 50px rgba(80, 255, 130, 0.3);
+        }
+
+        /* MESSAGE */
+        #message {
+            margin-top: 18px;
+
+            color: white;
+
+            font-size: clamp(25px, 7vw, 45px);
+
+            font-weight: bold;
+
+            letter-spacing: 3px;
+
+            white-space: nowrap;
+
+            text-shadow:
+                0 0 5px white,
+                0 0 12px #50ff82,
+                0 0 25px #50ff82,
+                0 0 45px #50ff82;
+        }
+
+        /* BLINKING CURSOR */
+        .cursor {
+            color: #50ff82;
+
+            animation: blink 0.7s infinite;
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        /* MOBILE */
+        @media (max-width: 600px) {
+
+            #centerContent {
+                width: 95vw;
+            }
+
+            #cjPhoto {
+                width: 70vw;
+                max-width: 280px;
+            }
+
+            #message {
+                font-size: clamp(22px, 8vw, 35px);
+                letter-spacing: 2px;
+                margin-top: 14px;
+            }
+
+            .glow {
+                width: 220px;
+                height: 220px;
+            }
+        }
+
+        /* VERY SMALL PHONES */
+        @media (max-width: 380px) {
+
+            #cjPhoto {
+                width: 65vw;
+                max-width: 240px;
+            }
+
+            #message {
+                font-size: 21px;
+                letter-spacing: 1px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- FALLING CODE -->
+    <canvas id="codeCanvas"></canvas>
+
+    <!-- FLOATING PARTICLES -->
+    <canvas id="particlesCanvas"></canvas>
+
+    <!-- GREEN GLOW -->
+    <div class="glow"></div>
+
+    <!-- CENTER PHOTO + MESSAGE -->
+    <div id="centerContent">
+
+        <img
+            id="cjPhoto"
+            src="treyreloaded-big-kiss.png"
+            alt="CJ"
+        >
+
+        <div id="message"></div>
+
+    </div>
+
+
+    <script>
+
+        /* ==========================================
+           FALLING CODE
+        ========================================== */
+
+        const codeCanvas =
+            document.getElementById("codeCanvas");
+
+        const codeCtx =
+            codeCanvas.getContext("2d");
+
+        let width;
+        let height;
+
+        function resizeCodeCanvas() {
+
+            width = window.innerWidth;
+            height = window.innerHeight;
+
+            codeCanvas.width = width;
+            codeCanvas.height = height;
+        }
+
+        resizeCodeCanvas();
+
+        window.addEventListener(
+            "resize",
+            resizeCodeCanvas
+        );
+
+
+        const characters =
+            "01ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz{}[]<>/\\#$%&*@";
+
+
+        let fontSize = 15;
+
+        let columns =
+            Math.floor(
+                window.innerWidth / fontSize
+            );
+
+        let drops = [];
+
+
+        function resetDrops() {
+
+            columns =
+                Math.floor(
+                    window.innerWidth / fontSize
+                );
+
+            drops = [];
+
+            for (
+                let i = 0;
+                i < columns;
+                i++
+            ) {
+
+                drops[i] =
+                    Math.random() * -50;
+            }
+        }
+
+
+        resetDrops();
+
+
+        function drawCode() {
+
+            codeCtx.fillStyle =
+                "rgba(2, 10, 5, 0.13)";
+
+            codeCtx.fillRect(
+                0,
+                0,
+                width,
+                height
+            );
+
+
+            codeCtx.font =
+                fontSize + "px monospace";
+
+
+            for (
+                let i = 0;
+                i < drops.length;
+                i++
+            ) {
+
+                const character =
+                    characters[
+                        Math.floor(
+                            Math.random() *
+                            characters.length
+                        )
+                    ];
+
+
+                const green =
+                    Math.random() > 0.25;
+
+
+                if (green) {
+
+                    if (Math.random() > 0.5) {
+
+                        codeCtx.fillStyle =
+                            "rgba(80,255,130,0.85)";
+
+                    } else {
+
+                        codeCtx.fillStyle =
+                            "rgba(180,255,200,0.75)";
+                    }
+
+                } else {
+
+                    codeCtx.fillStyle =
+                        "rgba(255,255,255,0.45)";
+                }
+
+
+                codeCtx.fillText(
+                    character,
+                    i * fontSize,
+                    drops[i] * fontSize
+                );
+
+
+                if (
+                    drops[i] * fontSize >
+                    height &&
+                    Math.random() > 0.975
+                ) {
+
+                    drops[i] = 0;
+                }
+
+
+                drops[i] += 0.45;
+            }
+
+
+            requestAnimationFrame(drawCode);
+        }
+
+
+        drawCode();
+
+
+        /* ==========================================
+           FLOATING PARTICLES
+        ========================================== */
+
+        const particlesCanvas =
+            document.getElementById(
+                "particlesCanvas"
+            );
+
+        const particleCtx =
+            particlesCanvas.getContext("2d");
+
+
+        function resizeParticlesCanvas() {
+
+            particlesCanvas.width =
+                window.innerWidth;
+
+            particlesCanvas.height =
+                window.innerHeight;
+        }
+
+
+        resizeParticlesCanvas();
+
+
+        window.addEventListener(
+            "resize",
+            resizeParticlesCanvas
+        );
+
+
+        let particles = [];
+
+
+        const particleCount =
+            window.innerWidth < 600
+                ? 90
+                : 170;
+
+
+        for (
+            let i = 0;
+            i < particleCount;
+            i++
+        ) {
+
+            particles.push({
+
+                x:
+                    Math.random() *
+                    window.innerWidth,
+
+                y:
+                    Math.random() *
+                    window.innerHeight,
+
+                size:
+                    Math.random() * 2 + 0.5,
+
+                speed:
+                    Math.random() * 0.5 + 0.15,
+
+                opacity:
+                    Math.random(),
+
+                direction:
+                    Math.random() > 0.5
+                        ? 1
+                        : -1
+            });
+        }
+
+
+        function drawParticles() {
+
+            particleCtx.clearRect(
+                0,
+                0,
+                window.innerWidth,
+                window.innerHeight
+            );
+
+
+            particles.forEach(
+                function (particle) {
+
+                    particle.y -=
+                        particle.speed;
+
+
+                    particle.x +=
+                        Math.sin(
+                            particle.y * 0.01
+                        ) *
+                        0.15 *
+                        particle.direction;
+
+
+                    if (particle.y < -10) {
+
+                        particle.y =
+                            window.innerHeight + 10;
+
+                        particle.x =
+                            Math.random() *
+                            window.innerWidth;
+                    }
+
+
+                    particleCtx.beginPath();
+
+
+                    particleCtx.arc(
+                        particle.x,
+                        particle.y,
+                        particle.size,
+                        0,
+                        Math.PI * 2
+                    );
+
+
+                    particleCtx.fillStyle =
+                        Math.random() > 0.3
+
+                        ? `rgba(
+                            80,
+                            255,
+                            130,
+                            ${particle.opacity}
+                          )`
+
+                        : `rgba(
+                            255,
+                            255,
+                            255,
+                            ${particle.opacity}
+                          )`;
+
+
+                    particleCtx.shadowBlur = 8;
+
+                    particleCtx.shadowColor =
+                        "#50ff82";
+
+
+                    particleCtx.fill();
+                }
+            );
+
+
+            requestAnimationFrame(
+                drawParticles
+            );
+        }
+
+
+        drawParticles();
+
+
+        /* ==========================================
+           SHOW PHOTO
+        ========================================== */
+
+        const centerContent =
+            document.getElementById(
+                "centerContent"
+            );
+
+
+        setTimeout(
+            function () {
+
+                centerContent.style.opacity = "1";
+
+                centerContent.style.transform =
+                    "translate(-50%, -50%) scale(1)";
+
+            },
+            3500
+        );
+
+
+        /* ==========================================
+           TYPE MESSAGE
+        ========================================== */
+
+        const message =
+            document.getElementById(
+                "message"
+            );
+
+
+        const text =
+            "KISS ME CJ";
+
+
+        let index = 0;
+
+
+        function typeMessage() {
+
+            if (index < text.length) {
+
+                message.innerHTML =
+                    text.substring(
+                        0,
+                        index + 1
+                    ) +
+                    '<span class="cursor">|</span>';
+
+
+                index++;
+
+
+                setTimeout(
+                    typeMessage,
+                    150
+                );
+
+            } else {
+
+                message.innerHTML =
+                    text +
+                    '<span class="cursor">|</span>';
+            }
+        }
+
+
+        setTimeout(
+            typeMessage,
+            5000
+        );
+
+    </script>
+
+</body>
+</html>
